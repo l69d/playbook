@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepSeek on Claude Code — how we plugged it in</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2230;
+    --border: #2b3340;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #4f8cff;
+    --accent-2: #7c5cff;
+    --green: #3fb950;
+    --amber: #d29922;
+    --red: #f85149;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
+                radial-gradient(1000px 500px at 0% 0%, rgba(79,140,255,.14), transparent 55%),
+                var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px 120px; }
+
+  /* Hero */
+  header.hero { padding: 88px 0 56px; text-align: center; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 14px; margin-bottom: 28px; background: rgba(255,255,255,.02);
+  }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+  h1 {
+    font-size: clamp(34px, 6vw, 56px); line-height: 1.05; margin: 0 0 18px;
+    letter-spacing: -.02em; font-weight: 800;
+  }
+  h1 .grad {
+    background: linear-gradient(100deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { font-size: clamp(16px, 2.4vw, 20px); color: var(--muted); max-width: 640px; margin: 0 auto; }
+  .flow {
+    display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    justify-content: center; margin-top: 36px;
+    font-family: var(--mono); font-size: 14px;
+  }
+  .chip {
+    border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px;
+    background: var(--panel);
+  }
+  .chip.ds { border-color: rgba(124,92,255,.5); color: #c4b5ff; }
+  .arrow { color: var(--muted); }
+
+  section { margin-top: 64px; }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 8px; font-family: var(--mono);
+    font-size: 15px; font-weight: 700; color: var(--bg);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    margin-right: 12px; flex: none;
+  }
+  h2 { display: flex; align-items: center; font-size: 26px; margin: 0 0 16px; letter-spacing: -.01em; }
+  h2 .step-num { font-size: 15px; }
+  p { color: #c9d1d9; }
+  p.note { color: var(--muted); font-size: 15px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Code blocks */
+  .code {
+    position: relative; background: #0a0e14; border: 1px solid var(--border);
+    border-radius: 12px; margin: 18px 0; overflow: hidden;
+  }
+  .code-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px; border-bottom: 1px solid var(--border);
+    background: var(--panel); font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .code-head .dots { display: flex; gap: 6px; }
+  .code-head .dots i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+  .code-head .dots i:nth-child(1){ background:#ff5f56;} .code-head .dots i:nth-child(2){background:#ffbd2e;} .code-head .dots i:nth-child(3){background:#27c93f;}
+  pre { margin: 0; padding: 18px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px; line-height: 1.7; }
+  code { font-family: var(--mono); }
+  .c-com { color: #6b7689; } .c-key { color: #ff7b72; } .c-str { color: #a5d6ff; }
+  .c-var { color: #ffa657; } .c-fn { color: #d2a8ff; } .c-flag { color: #79c0ff; }
+  .copy {
+    cursor: pointer; border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--muted); border-radius: 7px; padding: 4px 10px; font-size: 12px; font-family: var(--mono);
+  }
+  .copy:hover { color: var(--text); border-color: var(--accent); }
+
+  /* Cards / callouts */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+  @media (max-width: 640px){ .grid { grid-template-columns: 1fr; } }
+  .card {
+    border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; background: var(--panel);
+  }
+  .card h3 { margin: 0 0 8px; font-size: 16px; font-family: var(--mono); }
+  .card p { margin: 0; font-size: 14.5px; color: var(--muted); }
+  .callout {
+    border-left: 3px solid var(--amber); background: rgba(210,153,34,.08);
+    border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 18px 0;
+  }
+  .callout.bad { border-left-color: var(--red); background: rgba(248,81,73,.08); }
+  .callout.good { border-left-color: var(--green); background: rgba(63,185,80,.08); }
+  .callout strong { color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; }
+  td code { color: #ffa657; font-size: 13px; }
+
+  .bigstat { display: flex; gap: 22px; align-items: baseline; flex-wrap: wrap; margin: 22px 0 4px; }
+  .bigstat .num {
+    font-size: clamp(42px, 8vw, 76px); font-weight: 800; font-family: var(--mono); line-height: 1;
+    background: linear-gradient(100deg, var(--green), var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .bigstat .lbl { color: var(--muted); font-size: 15px; max-width: 380px; }
+  td.ds { color: #c4b5ff; font-weight: 600; }
+  td.win { color: var(--green); font-weight: 600; }
+  td.right { text-align: right; font-family: var(--mono); }
+  th.right { text-align: right; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: 12px; line-height: 1.7; }
+  .src a { color: var(--muted); text-decoration: underline; }
+  footer { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a href="../index.html" style="display:inline-block;margin-top:28px;color:var(--muted);font-size:14px;font-family:var(--mono);text-decoration:none">&larr; playbook</a>
+
+  <header class="hero">
+    <div class="pill"><span class="dot"></span> Working setup · macOS · Claude Code CLI</div>
+    <h1>Running <span class="grad">DeepSeek</span><br>inside Claude Code</h1>
+    <p class="sub">How I wired DeepSeek V4 Pro &amp; Flash into the Claude Code CLI without losing my Anthropic Max subscription — and the limitation that forced the design.</p>
+    <div class="flow">
+      <span class="chip">claude</span>
+      <span class="arrow">→ Anthropic Max</span>
+      <span class="chip ds">claude-DS-pro</span>
+      <span class="chip ds">claude-DS-flash</span>
+      <span class="arrow">→ DeepSeek</span>
+    </div>
+  </header>
+
+  <!-- The idea -->
+  <section>
+    <h2><span class="step-num">i</span>The goal</h2>
+    <p>Claude Code talks to Anthropic's API by default. But the CLI honors a handful of <code>ANTHROPIC_*</code> environment variables — point those at any Anthropic-compatible endpoint and the same CLI now drives a different model. DeepSeek ships exactly such an endpoint.</p>
+    <p>I wanted three commands on my machine:</p>
+    <div class="grid">
+      <div class="card"><h3>claude</h3><p>Untouched. Stays on my Anthropic Max subscription — no per-token billing.</p></div>
+      <div class="card"><h3 style="color:#c4b5ff">claude-DS-pro</h3><p>Same CLI, every request routed to DeepSeek V4 Pro.</p></div>
+      <div class="card"><h3 style="color:#c4b5ff">claude-DS-flash</h3><p>Same CLI, routed to the cheaper/faster DeepSeek V4 Flash.</p></div>
+    </div>
+  </section>
+
+  <!-- Step 1 -->
+  <section>
+    <h2><span class="step-num">1</span>Get a DeepSeek API key</h2>
+    <p>Create one at <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com/api_keys</a>, top up a little credit, and store it as an env var. I keep mine in <code>~/.zshrc</code>:</p>
+    <div class="code">
+      <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>~/.zshrc</span><button class="copy" data-copy="export DEEPSEEK_API_KEY=sk-your-key-here">copy</button></div>
+<pre><span class="c-key">export</span> <span class="c-var">DEEPSEEK_API_KEY</span>=<span class="c-str">sk-your-key-here</span></pre>
+    </div>
+    <p class="note">Reload the shell after editing: <code>source ~/.zshrc</code></p>
+  </section>
+
+  <!-- Step 2 -->
+  <section>
+    <h2><span class="step-num">2</span>The env vars that do the work</h2>
+    <p>DeepSeek exposes an Anthropic-compatible API. Setting these for a single command redirects that whole session:</p>
+    <table>
+      <tr><th>Variable</th><th>What it does</th></tr>
+      <tr><td><code>ANTHROPIC_BASE_URL</code></td><td>Points the CLI at <code>api.deepseek.com/anthropic</code> instead of Anthropic.</td></tr>
+      <tr><td><code>ANTHROPIC_AUTH_TOKEN</code></td><td>Your DeepSeek key (note: <em>AUTH_TOKEN</em>, not API_KEY).</td></tr>
+      <tr><td><code>ANTHROPIC_MODEL</code></td><td>Default model for the session — <code>deepseek-v4-pro</code> or <code>deepseek-v4-flash</code>.</td></tr>
+      <tr><td><code>ANTHROPIC_DEFAULT_*_MODEL</code></td><td>What the CLI's Opus / Sonnet / Haiku tiers map to under the hood.</td></tr>
+      <tr><td><code>CLAUDE_CODE_SUBAGENT_MODEL</code></td><td>Model used for spawned subagents — kept on Flash for speed/cost.</td></tr>
+    </table>
+  </section>
+
+  <!-- Step 3 -->
+  <section>
+    <h2><span class="step-num">3</span>Wrap them in shell functions</h2>
+    <p>Rather than export these globally (which would hijack every <code>claude</code> session), I scope them to two zsh functions. <code>command claude</code> ensures the real binary runs, and the vars exist only for that one invocation:</p>
+    <div class="code">
+      <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>~/.zshrc</span><button class="copy" data-copy='claude-DS-pro() {
+  ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic \
+  ANTHROPIC_AUTH_TOKEN="$DEEPSEEK_API_KEY" \
+  ANTHROPIC_MODEL=deepseek-v4-pro \
+  ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-pro \
+  ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro \
+  ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash \
+  CLAUDE_CODE_SUBAGENT_MODEL=deepseek-v4-flash \
+  CLAUDE_CODE_EFFORT_LEVEL=max \
+  command claude "$@"
+}
+
+claude-DS-flash() {
+  ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic \
+  ANTHROPIC_AUTH_TOKEN="$DEEPSEEK_API_KEY" \
+  ANTHROPIC_MODEL=deepseek-v4-flash \
+  ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-flash \
+  ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-flash \
+  ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash \
+  CLAUDE_CODE_SUBAGENT_MODEL=deepseek-v4-flash \
+  CLAUDE_CODE_EFFORT_LEVEL=max \
+  command claude "$@"
+}'>copy</button></div>
+<pre><span class="c-fn">claude-DS-pro</span>() {
+  <span class="c-var">ANTHROPIC_BASE_URL</span>=<span class="c-str">https://api.deepseek.com/anthropic</span> \
+  <span class="c-var">ANTHROPIC_AUTH_TOKEN</span>=<span class="c-str">"$DEEPSEEK_API_KEY"</span> \
+  <span class="c-var">ANTHROPIC_MODEL</span>=<span class="c-str">deepseek-v4-pro</span> \
+  <span class="c-var">ANTHROPIC_DEFAULT_OPUS_MODEL</span>=<span class="c-str">deepseek-v4-pro</span> \
+  <span class="c-var">ANTHROPIC_DEFAULT_SONNET_MODEL</span>=<span class="c-str">deepseek-v4-pro</span> \
+  <span class="c-var">ANTHROPIC_DEFAULT_HAIKU_MODEL</span>=<span class="c-str">deepseek-v4-flash</span> \
+  <span class="c-var">CLAUDE_CODE_SUBAGENT_MODEL</span>=<span class="c-str">deepseek-v4-flash</span> \
+  <span class="c-var">CLAUDE_CODE_EFFORT_LEVEL</span>=<span class="c-str">max</span> \
+  <span class="c-key">command</span> claude <span class="c-str">"$@"</span>
+}
+
+<span class="c-fn">claude-DS-flash</span>() {
+  <span class="c-com"># same block, but every model = deepseek-v4-flash</span>
+  <span class="c-var">ANTHROPIC_BASE_URL</span>=<span class="c-str">https://api.deepseek.com/anthropic</span> \
+  <span class="c-var">ANTHROPIC_AUTH_TOKEN</span>=<span class="c-str">"$DEEPSEEK_API_KEY"</span> \
+  <span class="c-var">ANTHROPIC_MODEL</span>=<span class="c-str">deepseek-v4-flash</span> \
+  <span class="c-key">command</span> claude <span class="c-str">"$@"</span>
+}</pre>
+    </div>
+  </section>
+
+  <!-- Step 4 -->
+  <section>
+    <h2><span class="step-num">4</span>Use it</h2>
+    <div class="code">
+      <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>terminal</span><button class="copy" data-copy="source ~/.zshrc
+claude             # Anthropic Max, as always
+claude-DS-pro      # DeepSeek V4 Pro
+claude-DS-flash    # DeepSeek V4 Flash
+claude-DS-pro -p 'say hello in 3 words'   # one-shot smoke test">copy</button></div>
+<pre><span class="c-key">source</span> ~/.zshrc
+claude             <span class="c-com"># Anthropic Max, as always</span>
+claude-DS-pro      <span class="c-com"># DeepSeek V4 Pro</span>
+claude-DS-flash    <span class="c-com"># DeepSeek V4 Flash</span>
+claude-DS-pro <span class="c-flag">-p</span> <span class="c-str">'say hello in 3 words'</span>   <span class="c-com"># one-shot smoke test</span></pre>
+    </div>
+  </section>
+
+  <!-- Cost -->
+  <section>
+    <h2><span class="step-num">$</span>How much cheaper is it?</h2>
+    <p>A lot. Here's a representative coding task — ~1M input tokens (a big repo context) and ~200K output:</p>
+    <div class="bigstat">
+      <span class="num">~16×</span>
+      <span class="lbl">A task that runs about <strong style="color:var(--text)">$10 on Claude Opus&nbsp;4.7</strong> costs roughly <strong style="color:var(--green)">$0.61 on DeepSeek V4&nbsp;Pro</strong>. The lightweight Flash tier lands near <strong style="color:#c4b5ff">$0.20</strong> for the same work.</span>
+    </div>
+    <table>
+      <tr><th>Model</th><th class="right">Input / 1M</th><th class="right">Output / 1M</th><th>Tier</th></tr>
+      <tr><td class="ds">DeepSeek V4 Pro</td><td class="right">$0.44</td><td class="right">$0.87</td><td>frontier</td></tr>
+      <tr><td class="ds">DeepSeek V4 Flash</td><td class="right">$0.14</td><td class="right">$0.28</td><td>fast / cheap</td></tr>
+      <tr><td>Claude Opus 4.7</td><td class="right">$5.00</td><td class="right">$25.00</td><td>flagship</td></tr>
+      <tr><td>Claude Sonnet 4.6</td><td class="right">$3.00</td><td class="right">$15.00</td><td>workhorse</td></tr>
+      <tr><td>Claude Haiku 4.5</td><td class="right">$1.00</td><td class="right">$5.00</td><td>fast / cheap</td></tr>
+    </table>
+    <p class="note">Per million tokens. On output — the expensive half of any coding session — V4 Pro is <strong style="color:var(--green)">~29× cheaper</strong> than Opus 4.7 and ~17× cheaper than Sonnet 4.6. DeepSeek also auto-caches overlapping prefixes (~$0.0145/M cached input), so long multi-turn sessions get cheaper still.</p>
+    <div class="callout">
+      <strong>Caveat on the rate.</strong> V4 Pro's $0.44 / $0.87 reflects DeepSeek's promotional price (75% off) running through <strong>May 31, 2026</strong>; DeepSeek states this becomes the standard rate (¼ of the original $1.74 / $3.48) afterward. Always check live pricing before relying on it.
+    </div>
+    <p class="src">
+      Price sources (May 2026):
+      <a href="https://api-docs.deepseek.com/quick_start/pricing" target="_blank" rel="noopener">DeepSeek API pricing</a> ·
+      <a href="https://openrouter.ai/deepseek/deepseek-v4-pro" target="_blank" rel="noopener">V4 Pro on OpenRouter</a> ·
+      <a href="https://openrouter.ai/deepseek/deepseek-v4-flash" target="_blank" rel="noopener">V4 Flash on OpenRouter</a> ·
+      <a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">Claude API pricing</a>.
+    </p>
+  </section>
+
+  <!-- Benchmarks -->
+  <section>
+    <h2><span class="step-num">★</span>How good are the models?</h2>
+    <p>DeepSeek V4 launched April 24, 2026 — V4 Pro (1.6T params, 49B active) and V4 Flash (284B, 13B active), both with a 1M-token context window. The Pro tier posts frontier-class coding scores:</p>
+    <table>
+      <tr><th>Benchmark</th><th class="right">DeepSeek V4 Pro</th><th class="right">Claude Opus 4.7</th></tr>
+      <tr><td>SWE-bench Verified</td><td class="right ds">80.6%</td><td class="right">top-tier</td></tr>
+      <tr><td>SWE-bench Pro <em>(harder)</em></td><td class="right">55.4%</td><td class="right win">64.3%</td></tr>
+      <tr><td>LiveCodeBench</td><td class="right ds">93.5</td><td class="right">—</td></tr>
+      <tr><td>MMLU-Pro</td><td class="right ds">87.5</td><td class="right">—</td></tr>
+    </table>
+    <div class="callout good">
+      <strong>The honest read.</strong> On the hardest coding benchmark (SWE-bench Pro), <strong>Claude Opus 4.7 still leads</strong> — 64.3% vs 55.4%. But V4 Pro hits 80.6% on SWE-bench Verified and 93.5 on LiveCodeBench: genuinely frontier-class, at roughly <strong>1/16th the cost</strong>. That's the whole pitch — keep Opus for the gnarliest problems, reach for DeepSeek for the high-volume 90%.
+    </div>
+    <p class="src">
+      Benchmark sources (May 2026):
+      <a href="https://www.aimadetools.com/blog/deepseek-v4-pro-complete-guide/" target="_blank" rel="noopener">V4 Pro: 80.6% SWE-bench, 1.6T params</a> ·
+      <a href="https://macaron.im/blog/deepseek-v4-benchmarks" target="_blank" rel="noopener">V4 MMLU / HumanEval / SWE-bench</a> ·
+      <a href="https://benchlm.ai/models/deepseek-v4-pro-high" target="_blank" rel="noopener">V4 Pro rankings</a> ·
+      <a href="https://www.finout.io/blog/claude-opus-4.7-pricing-the-real-cost-story-behind-the-unchanged-price-tag" target="_blank" rel="noopener">Opus 4.7 SWE-bench Pro (64.3%)</a>.
+      Scores change — confirm before relying on them.
+    </p>
+  </section>
+
+  <!-- The limitation -->
+  <section>
+    <h2><span class="step-num">!</span>Why not just add them to <code>/model</code>?</h2>
+    <p>The obvious wish is to open one <code>claude</code> session and pick DeepSeek from the <code>/model</code> menu. I tried — here's why it doesn't work, and why the wrapper approach is actually the clean answer:</p>
+
+    <div class="callout bad">
+      <strong>The picker is near-hardcoded.</strong> Claude Code's <code>/model</code> menu shows Anthropic's tiers (Opus / Sonnet / Haiku). Natively you can bolt on <em>one</em> extra entry via <code>ANTHROPIC_CUSTOM_MODEL_OPTION</code> — but only one. Two custom models (Pro <em>and</em> Flash) requires an external LLM gateway.
+    </div>
+
+    <div class="callout bad">
+      <strong>Max auth doesn't proxy.</strong> The Anthropic Max subscription authenticates through an interactive OAuth flow, not a static API key. It can't be passed through a local gateway. So any setup that routes everything through a proxy to mix providers <em>loses Max access</em> in that session — you'd be back to pay-per-token.
+    </div>
+
+    <div class="callout good">
+      <strong>So the model lives in the launch command, not the menu.</strong> Each wrapper is its own clean lane: <code>claude</code> = Max, <code>claude-DS-pro</code> / <code>claude-DS-flash</code> = DeepSeek. No proxy daemon to babysit, nothing hijacked, fully reversible by deleting two functions. The "limitation" turned out to be the simpler design.
+    </div>
+  </section>
+
+  <footer>
+    Built while wiring DeepSeek into Claude Code · the model you choose is the command you type.
+  </footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      navigator.clipboard.writeText(btn.getAttribute('data-copy')).then(function(){
+        var old = btn.textContent; btn.textContent = 'copied ✓';
+        setTimeout(function(){ btn.textContent = old; }, 1400);
+      });
+    });
+  });
+</script>
+</body>
+</html>
