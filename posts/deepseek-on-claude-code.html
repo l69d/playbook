@@ -157,6 +157,72 @@
     </div>
   </header>
 
+  <!-- Copy-paste prompt -->
+  <section>
+    <h2><span class="step-num">⚡</span>Just want it done? Paste this into Claude Code</h2>
+    <p>Skip the reading — drop this prompt into a fresh Claude Code session and it'll do the whole setup for you (any OS, zsh or bash). The walkthrough below is what it ends up building.</p>
+    <div class="code">
+      <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>prompt → Claude Code</span><button class="copy" data-copy="Set up DeepSeek as selectable models in my Claude Code CLI without disturbing my
+existing Anthropic subscription. I want two new shell commands:
+
+  • claude-DS-pro    → launches Claude Code routed to DeepSeek V4 Pro
+  • claude-DS-flash  → launches Claude Code routed to DeepSeek V4 Flash
+
+Plain `claude` must stay exactly as-is (on my Anthropic plan). Note: Claude Code's
+/model picker can't natively list non-Anthropic models, and a subscription login
+can't be proxied — so the clean approach is per-launch wrapper functions, NOT a
+proxy or global env vars.
+
+Do this:
+1. I have a DeepSeek API key (if not, tell me to grab one at
+   https://platform.deepseek.com/api_keys). Add it to my shell rc file as:
+       export DEEPSEEK_API_KEY=&lt;my-key&gt;
+2. Add two shell functions to my rc file (~/.zshrc for zsh, ~/.bashrc for bash)
+   that set these env vars for that one invocation only, then run `command claude`:
+       ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
+       ANTHROPIC_AUTH_TOKEN=&quot;$DEEPSEEK_API_KEY&quot;
+       ANTHROPIC_MODEL / ANTHROPIC_DEFAULT_OPUS_MODEL / _SONNET_MODEL  = deepseek-v4-pro
+       ANTHROPIC_DEFAULT_HAIKU_MODEL / CLAUDE_CODE_SUBAGENT_MODEL      = deepseek-v4-flash
+       CLAUDE_CODE_EFFORT_LEVEL=max
+   The pro function uses deepseek-v4-pro; the flash function uses deepseek-v4-flash
+   for every model var. Pass &quot;$@&quot; through so flags still work.
+3. Tell me to run `source &lt;rc-file&gt;`, then verify with:
+       claude-DS-pro -p &quot;say hello in 3 words&quot;
+   Confirm it returns a reply (that proves requests reach DeepSeek).
+
+Don't touch plain `claude`. Don't print my API key back. Keep the edit reversible.">copy</button></div>
+<pre>Set up DeepSeek as selectable models in my Claude Code CLI without disturbing my
+existing Anthropic subscription. I want two new shell commands:
+
+  • <span class="c-fn">claude-DS-pro</span>    → launches Claude Code routed to DeepSeek V4 Pro
+  • <span class="c-fn">claude-DS-flash</span>  → launches Claude Code routed to DeepSeek V4 Flash
+
+Plain <span class="c-str">`claude`</span> must stay exactly as-is (on my Anthropic plan). Note: Claude Code's
+/model picker can't natively list non-Anthropic models, and a subscription login
+can't be proxied — so the clean approach is per-launch wrapper functions, NOT a
+proxy or global env vars.
+
+<span class="c-com">Do this:</span>
+1. I have a DeepSeek API key (if not, tell me to grab one at
+   https://platform.deepseek.com/api_keys). Add it to my shell rc file as:
+       <span class="c-var">export DEEPSEEK_API_KEY=&lt;my-key&gt;</span>
+2. Add two shell functions to my rc file (~/.zshrc for zsh, ~/.bashrc for bash)
+   that set these env vars for that one invocation only, then run `command claude`:
+       <span class="c-var">ANTHROPIC_BASE_URL</span>=https://api.deepseek.com/anthropic
+       <span class="c-var">ANTHROPIC_AUTH_TOKEN</span>="$DEEPSEEK_API_KEY"
+       <span class="c-var">ANTHROPIC_MODEL</span> / <span class="c-var">ANTHROPIC_DEFAULT_OPUS_MODEL</span> / <span class="c-var">_SONNET_MODEL</span>  = deepseek-v4-pro
+       <span class="c-var">ANTHROPIC_DEFAULT_HAIKU_MODEL</span> / <span class="c-var">CLAUDE_CODE_SUBAGENT_MODEL</span>      = deepseek-v4-flash
+       <span class="c-var">CLAUDE_CODE_EFFORT_LEVEL</span>=max
+   The pro function uses deepseek-v4-pro; the flash function uses deepseek-v4-flash
+   for every model var. Pass "$@" through so flags still work.
+3. Tell me to run `source &lt;rc-file&gt;`, then verify with:
+       <span class="c-fn">claude-DS-pro</span> <span class="c-flag">-p</span> "say hello in 3 words"
+   Confirm it returns a reply (that proves requests reach DeepSeek).
+
+Don't touch plain `claude`. Don't print my API key back. Keep the edit reversible.</pre>
+    </div>
+  </section>
+
   <!-- The idea -->
   <section>
     <h2><span class="step-num">i</span>The goal</h2>
