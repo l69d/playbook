@@ -398,6 +398,33 @@ claude-DS-pro <span class="c-flag">-p</span> <span class="c-str">'say hello in 3
     </div>
   </section>
 
+  <!-- Gotchas -->
+  <section>
+    <h2><span class="step-num">?</span>Two things that look wrong but aren't</h2>
+    <p>Once you're in a DeepSeek session and run <code>/model</code>, two things will make you double-take. Both are harmless:</p>
+
+    <div class="code">
+      <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>/model inside claude-DS-flash</span></div>
+<pre>1. Default (recommended)   currently deepseek-v4-flash · <span class="c-com">$5/$25 per Mtok</span>
+2. <span class="c-fn">deepseek-v4-flash</span>          Custom Opus model
+3. <span class="c-fn">deepseek-v4-flash</span>          Custom Sonnet model
+4. <span class="c-fn">deepseek-v4-flash</span>          Custom Haiku model
+5. <span class="c-fn">deepseek-v4-flash</span> ✓        Custom model</pre>
+    </div>
+
+    <p><strong>1 · Why the model name repeats four times.</strong> The picker renders one row per model "slot" Claude Code knows about — the Opus, Sonnet and Haiku tiers plus the active model. Our flash wrapper deliberately points <em>every</em> slot at <code>deepseek-v4-flash</code>, so all four rows read the same. Whichever you pick routes to the identical place.</p>
+
+    <div class="callout">
+      <strong>Why not unset them to clean up the list?</strong> Those <code>ANTHROPIC_DEFAULT_*_MODEL</code> mappings aren't cosmetic. Claude Code fires internal background calls on the <strong>Haiku tier</strong> — conversation summarization, title generation, some subagent work. Leave <code>ANTHROPIC_DEFAULT_HAIKU_MODEL</code> unset and those calls hit a model name DeepSeek doesn't have, and error out. Mapping every tier is what keeps the CLI fully functional against a non-Anthropic backend. The repetition is the price of correctness.
+    </div>
+
+    <div class="callout bad">
+      <strong>2 · Ignore the <code>$5/$25 per Mtok</code> label.</strong> That's a hardcoded UI string (Anthropic's Opus price) — the CLI has no idea what DeepSeek charges. You're actually billed DeepSeek's rate (<code>$0.14/$0.28</code> for Flash, <code>$0.44/$0.87</code> for Pro), not what the menu shows.
+    </div>
+
+    <p class="note">Under <code>claude-DS-pro</code> the list looks slightly different: the Opus / Sonnet / Custom rows say <code>deepseek-v4-pro</code> and the Haiku row stays <code>deepseek-v4-flash</code>, so background tasks stay cheap.</p>
+  </section>
+
   <footer>
     Built while wiring DeepSeek into Claude Code · the model you choose is the command you type.<br>
     <a href="https://x.com/srikarthikgowda" target="_blank" rel="noopener">@srikarthikgowda</a> on X ·
