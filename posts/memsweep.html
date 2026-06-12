@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>memsweep — RAM monitor that kills idle Claude jobs</title>
+<style>
+  :root { --bg: #0d1117; --panel: #161b22; --panel-2: #1c2230; --border: #2b3340; --text: #e6edf3; --muted: #8b949e; --accent: #4f8cff; --accent-2: #7c5cff; --green: #3fb950; --amber: #d29922; --red: #f85149; --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,.18), transparent 60%), radial-gradient(1000px 500px at 0% 0%, rgba(79,140,255,.14), transparent 55%), var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px 120px; }
+  header.hero { padding: 88px 0 56px; text-align: center; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; margin-bottom: 28px; background: rgba(255,255,255,.02); }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+  h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -.02em; font-weight: 800; }
+  h1 .grad { background: linear-gradient(100deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { font-size: clamp(16px, 2.4vw, 20px); color: var(--muted); max-width: 640px; margin: 0 auto; }
+  .flow { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; margin-top: 36px; font-family: var(--mono); font-size: 14px; }
+  .chip { border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px; background: var(--panel); }
+  .chip.accent { border-color: rgba(79,140,255,.5); color: #a5c8ff; }
+  section { margin-top: 64px; }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--bg); background: linear-gradient(135deg, var(--accent), var(--accent-2)); margin-right: 12px; flex: none; }
+  h2 { display: flex; align-items: center; font-size: 26px; margin: 0 0 16px; letter-spacing: -.01em; }
+  h2 .step-num { font-size: 15px; }
+  p { color: #c9d1d9; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .code { position: relative; background: #0a0e14; border: 1px solid var(--border); border-radius: 12px; margin: 18px 0; overflow: hidden; }
+  .code-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--panel); font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .code-head .dots { display: flex; gap: 6px; }
+  .code-head .dots i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+  .code-head .dots i:nth-child(1){ background:#ff5f56;} .code-head .dots i:nth-child(2){background:#ffbd2e;} .code-head .dots i:nth-child(3){background:#27c93f;}
+  pre { margin: 0; padding: 18px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px; line-height: 1.7; }
+  code { font-family: var(--mono); }
+  .c-com { color: #6b7689; } .c-key { color: #ff7b72; } .c-str { color: #a5d6ff; } .c-var { color: #ffa657; } .c-fn { color: #d2a8ff; }
+  .copy { cursor: pointer; border: 1px solid var(--border); background: var(--panel-2); color: var(--muted); border-radius: 7px; padding: 4px 10px; font-size: 12px; font-family: var(--mono); }
+  .copy:hover { color: var(--text); border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+  @media (max-width: 640px){ .grid { grid-template-columns: 1fr; } }
+  .card { border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; background: var(--panel); }
+  .card h3 { margin: 0 0 8px; font-size: 16px; font-family: var(--mono); }
+  .card p { margin: 0; font-size: 14.5px; color: var(--muted); }
+  .callout { border-left: 3px solid var(--amber); background: rgba(210,153,34,.08); border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 18px 0; }
+  .callout.good { border-left-color: var(--green); background: rgba(63,185,80,.08); }
+  .callout strong { color: var(--text); }
+  footer { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a href="../index.html" style="display:inline-block;margin-top:28px;color:var(--muted);font-size:14px;font-family:var(--mono);text-decoration:none">&larr; playbook</a>
+
+  <header class="hero">
+    <div class="pill"><span class="dot"></span> Open source · TUI · macOS · memory</div>
+    <h1><span class="grad">memsweep</span></h1>
+    <p class="sub">A terminal memory monitor that shows what's eating your RAM — and safely reclaims idle Claude Code jobs, Chrome processes, and anything else that's hogging memory.</p>
+  </header>
+
+  <section>
+    <h2><span class="step-num">i</span>The problem</h2>
+    <p>Claude Code sessions left idle don't die gracefully. <code>kill -9</code> doesn't always work because the supervisor respawns them. Chrome tabs accumulate. Swap fills up. The only way to actually close an idle Claude session is to unpin it first — and <em>then</em> terminate it.</p>
+    <p><strong>memsweep</strong> automates this. It's a Textual TUI that shows your RAM, swap, and compressor pressure — groups processes into bundles (Claude, Chrome, VS Code, etc.) — and can auto-reclaim memory from idle Claude jobs by unpinning them first, then terminating. The sequence that actually sticks.</p>
+  </section>
+
+  <section>
+    <h2><span class="step-num">1</span>Install</h2>
+    <div class="code">
+      <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>terminal</span><button class="copy" data-copy="pip install memsweep">copy</button></div>
+<pre>pip install memsweep
+
+<span class="c-com"># Or clone &amp; run</span>
+git clone https://github.com/l69d/memsweep
+cd memsweep && python3 -m memsweep</pre>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step-num">2</span>Usage</h2>
+    <div class="code">
+      <div class="code-head"><span class="dots"><i></i><i></i><i></i></span><span>terminal</span><button class="copy" data-copy="memsweep             # launch the TUI
+memsweep --report    # one-shot report, no TUI
+memsweep --reap      # find and close idle Claude jobs">copy</button></div>
+<pre>memsweep             <span class="c-com"># Launch the interactive TUI</span>
+memsweep --report    <span class="c-com"># One-shot memory report, no TUI</span>
+memsweep --reap      <span class="c-com"># Find and close idle Claude jobs</span></pre>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step-num">★</span>What makes it different</h2>
+    <div class="grid">
+      <div class="card"><h3>Claude-aware</h3><p>Knows about Claude Code's pin/supervisor system. Unpins before killing — the sequence that actually closes sessions.</p></div>
+      <div class="card"><h3>Process groups</h3><p>Groups by app bundle — Claude, Chrome, VS Code, and others — so you see at a glance who's consuming what.</p></div>
+      <div class="card"><h3>Compressor-aware</h3><p>Shows memory-compressor and swap pressure. When macOS starts compressing heavily, it's time to reap.</p></div>
+      <div class="card"><h3>27 tests</h3><p>Tested against real macOS memory pressure scenarios. Not a hacky script — a proper tool.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step-num">★</span>Project links</h2>
+    <div class="grid">
+      <div class="card"><h3>GitHub</h3><p><a href="https://github.com/l69d/memsweep" target="_blank" rel="noopener">github.com/l69d/memsweep</a><br>MIT licensed. pip installable.</p></div>
+      <div class="card"><h3>Why built</h3><p>Because killing a Claude PID doesn't close Claude — the supervisor brings it back. memsweep was built to solve that exact frustration.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    Productivity · reclaim your RAM.<br>
+    <a href="https://x.com/srikarthikgowda" target="_blank" rel="noopener">@srikarthikgowda</a> on X ·
+    <a href="https://github.com/l69d/playbook" target="_blank" rel="noopener">source on GitHub</a>
+  </footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      navigator.clipboard.writeText(btn.getAttribute('data-copy')).then(function(){
+        var old = btn.textContent; btn.textContent = 'copied ✓';
+        setTimeout(function(){ btn.textContent = old; }, 1400);
+      });
+    });
+  });
+</script>
+</body>
+</html>
