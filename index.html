@@ -57,7 +57,26 @@
   .entry.soon { opacity: .55; cursor: default; }
   .entry.soon:hover { border-color: var(--border); transform: none; background: var(--panel); }
 
-  footer { margin-top: 70px; padding-top: 28px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+  /* Stats bar */
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 60px; }
+  .stat {
+    flex: 1; min-width: 110px; text-align: center; padding: 20px 12px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--panel);
+    font-size: 14px; color: var(--muted); font-family: var(--mono);
+  }
+  .stat-num { display: block; font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .stat-num.grad { background: linear-gradient(100deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* Activity feed */
+  .activity { margin-top: 18px; }
+  .act-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid rgba(43,51,64,.5); }
+  .act-item:last-child { border-bottom: none; }
+  .act-date { font-family: var(--mono); font-size: 12.5px; color: var(--muted); white-space: nowrap; min-width: 56px; padding-top: 2px; }
+  .act-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; margin-top: 6px; opacity: .7; }
+  .act-text { font-size: 14.5px; color: #c9d1d9; }
+  .act-text strong { color: var(--text); font-weight: 500; }
+
+  footer { margin-top: 60px; padding-top: 28px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
   footer a { color: var(--accent); text-decoration: none; }
   footer a:hover { text-decoration: underline; }
 </style>
@@ -170,6 +189,34 @@
     <h2>physics — visualizations that make physics click</h2>
     <p>Interactive visualizations designed to make physics concepts intuitive — the kind of diagrams and animations that turn "I think I get it" into "oh, that's obvious."</p>
   </a>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat"><span class="stat-num">14</span> entries</div>
+    <div class="stat"><span class="stat-num">7</span> categories</div>
+    <div class="stat"><span class="stat-num">15</span> public repos</div>
+    <div class="stat"><span class="stat-num">Jun 2026</span> latest</div>
+  </div>
+
+  <!-- Recent activity -->
+  <p class="section-label" style="margin-top:60px">Recent activity</p>
+  <div class="activity">
+    <div class="act-item">
+      <span class="act-date">13 Jun</span>
+      <span class="act-dot"></span>
+      <span class="act-text">Published <strong>13 new entries</strong> — all projects now on the playbook</span>
+    </div>
+    <div class="act-item">
+      <span class="act-date">May 26</span>
+      <span class="act-dot"></span>
+      <span class="act-text">Published <strong>Running DeepSeek inside Claude Code</strong></span>
+    </div>
+    <div class="act-item">
+      <span class="act-date">May 26</span>
+      <span class="act-dot"></span>
+      <span class="act-text">Launched <strong>playbook</strong> — build in public</span>
+    </div>
+  </div>
 
   <footer>
     Maintained by <a href="https://github.com/l69d" target="_blank" rel="noopener">@l69d</a> ·
