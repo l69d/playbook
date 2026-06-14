@@ -82,9 +82,28 @@
 </style>
 <script>
   history.scrollRestoration='manual';
-  window.scrollTo(0,0);
+  (function(){
+    var d=document.documentElement;
+    d.style.overflow='hidden';
+    window.scrollTo(0,0);
+    var unlock=function(){
+      setTimeout(function(){
+        window.scrollTo(0,0);
+        d.style.overflow='';
+      },20);
+    };
+    if(document.readyState=='complete')unlock();
+    else window.addEventListener('load',unlock);
+  })();
   window.addEventListener('pageshow',function(e){
-    if(e.persisted||e.isTrusted){window.scrollTo(0,0)}
+    if(e.persisted){
+      document.documentElement.style.overflow='hidden';
+      window.scrollTo(0,0);
+      setTimeout(function(){
+        window.scrollTo(0,0);
+        document.documentElement.style.overflow='';
+      },10);
+    }
   });
 </script>
 </head>
@@ -232,8 +251,5 @@
   </footer>
 
 </div>
-<script>
-  document.addEventListener('DOMContentLoaded',function(){window.scrollTo(0,0)});
-</script>
 </body>
 </html>
